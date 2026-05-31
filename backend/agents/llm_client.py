@@ -3,7 +3,7 @@ from config import model_name
 
 llm = ChatGroq(
     model= model_name,
-    temperature=0,
+    temperature=0.6,
 #     model_kwargs={
 #         "tool_choice": "auto"
 #     }
