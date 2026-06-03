@@ -3,12 +3,12 @@ from agents.llm_client import get_llm
 
 # Tools -> 
 from tools.web_search import web_search
-from tools.wikipedia import search_wikipedia
+from tools.wikipedia_search import wikipedia_search
 from tools.pdf_reader import pdf_reader
 from tools.arvix_search import arxiv_search
 
 
-tools = [web_search, search_wikipedia, pdf_reader, arxiv_search]
+tools = [web_search, wikipedia_search, pdf_reader, arxiv_search]
 
 def build_agent():
     llm = get_llm()
