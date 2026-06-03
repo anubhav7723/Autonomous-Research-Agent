@@ -6,29 +6,40 @@ from agents.llm_client import get_llm
 llm = get_llm()
 
 PLANNER_PROMPT = """
-You are a research planner. Break down the user's query into 2 - 3 subtasks.
+You are a research planner. You will be given a conversation history and a new query.
+Use the conversation history to understand context — the user may be asking a follow-up question.
 
-Available Tools:
+Available tools (use EXACTLY these names):
 - web_search: current news, recent events
-- wikipedia: background knowledge, definitions, history
+- wikipedia_search: background knowledge, definitions, history  ← exact name
 - pdf_reader: read a PDF from URL or file path
 - arxiv_search: academic papers, research studies
 
 Respond ONLY in this JSON format, nothing else:
 {
     "tasks": [
-        {"tool": "tool_name", "query": "specific query for this tool"},
         {"tool": "tool_name", "query": "specific query for this tool"}
     ]
 }
 """
 
-def plan(query: str) -> list:
+def plan(query: str, conversation_history: list = []) -> list:
+    
+    history_text = ""
+    if conversation_history:
+        history_text = "\n Conversation History: \n"
+        for msg in conversation_history[-6:]: #last 3 turns only
+            role =  "User" if msg['role'] == 'user' else 'Assistant'
+            # trim long response
+            content = msg["content"][:300] + "..." if len(msg["content"]) > 300 else msg["content"]
+            history_text += f"{role} : {content}\n"
+            
+    
     print("\n Planner : breaking down {query}\n")
     
     response = llm.invoke([
         SystemMessage(content=PLANNER_PROMPT),
-        HumanMessage(content=query)
+        HumanMessage(content=f"{history_text}\nNew Query: {query}")
     ])
     
     try:
