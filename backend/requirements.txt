@@ -6,3 +6,5 @@ python-dotenv
 wikipedia
 pymupdf
 arxiv
+chromadb
+sentence-transformers
