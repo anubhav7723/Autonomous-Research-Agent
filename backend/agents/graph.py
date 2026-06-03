@@ -3,26 +3,27 @@ from typing import TypedDict
 from agents.planner import plan
 from agents.synthesizer import synthesize
 from tools.web_search import web_search
-from tools.wikipedia import wikipedia
+from tools.wikipedia_search import wikipedia_search
 from tools.pdf_reader import pdf_reader
 from tools.arvix_search import arxiv_search
 
 Tools = {
     'web_search': web_search,
-    'wikipedia_search': wikipedia,
+    'wikipedia_search': wikipedia_search,
     'pdf_reader': pdf_reader,
     'arxiv_search': arxiv_search
 }
 
 class AgentState(TypedDict):
     query: str
+    conversation_history: list
     tasks: list
     tool_results: list
     final_report: str
     
 #Nodes
 def planner_node(state: AgentState)-> AgentState:
-    tasks = plan(state['query'])
+    tasks = plan(state['query'], state['conversation_history'])
     return {**state, 'tasks': tasks}
 
 def executor_node(state: AgentState)-> AgentState:
@@ -55,7 +56,7 @@ def executor_node(state: AgentState)-> AgentState:
     return {**state, "tool_results": results}
 
 def synthesizer_node(state: AgentState) -> AgentState:
-    report = synthesize(state["query"], state["tool_results"])
+    report = synthesize(state["query"], state["tool_results"], state['conversation_history'])
     return {**state, "final_report": report}
 
 def build_graph():
