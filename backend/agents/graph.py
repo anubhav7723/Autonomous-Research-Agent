@@ -6,6 +6,7 @@ from tools.web_search import web_search
 from tools.wikipedia_search import wikipedia_search
 from tools.pdf_reader import pdf_reader
 from tools.arvix_search import arxiv_search
+from memory.vector_store import store, retrieve
 
 Tools = {
     'web_search': web_search,
@@ -19,12 +20,16 @@ class AgentState(TypedDict):
     conversation_history: list
     tasks: list
     tool_results: list
+    memory_context: str
     final_report: str
     
 #Nodes
 def planner_node(state: AgentState)-> AgentState:
-    tasks = plan(state['query'], state['conversation_history'])
-    return {**state, 'tasks': tasks}
+    memory_context = retrieve(state["query"])
+    if memory_context:
+        print(f"\n[VECTOR STORE] Found relevant memory for query")
+    tasks = plan(state['query'], state['conversation_history'], memory_context)
+    return {**state, 'tasks': tasks, 'memory_context': memory_context}
 
 def executor_node(state: AgentState)-> AgentState:
     results = []
@@ -46,6 +51,7 @@ def executor_node(state: AgentState)-> AgentState:
                 "query": query,
                 "output": output
             })
+            store(tool_name, query, output)
         except Exception as e:
             print(f"[EXECUTOR] Tool {tool_name} failed: {e}")
             results.append({
@@ -56,7 +62,7 @@ def executor_node(state: AgentState)-> AgentState:
     return {**state, "tool_results": results}
 
 def synthesizer_node(state: AgentState) -> AgentState:
-    report = synthesize(state["query"], state["tool_results"], state['conversation_history'])
+    report = synthesize(state["query"], state["tool_results"], state['conversation_history'], state['memory_context'])
     return {**state, "final_report": report}
 
 def build_graph():

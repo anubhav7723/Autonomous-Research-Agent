@@ -6,18 +6,19 @@ llm = get_llm()
 SYNTHESIZER_PROMPT = """
 You are a research synthesizer. You are given:
 - A conversation history (for context on follow-up questions)
+- Relevant memory from previous research (if any)
 - A user query
-- Results collected from multiple research tools
+- Fresh results collected from research tools
 
 Your job is to:
-- Write a clear, concise answer — not a full academic paper unless asked
+- Combine memory + fresh results into a clear concise answer
 - For simple queries: 2-3 paragraphs maximum
-- For complex queries like "summarize research" or "write a report": use full structure with headings
-- If this is a follow-up question, reference previous context naturally
+- For complex queries like "summarize research": use headings and bullets
+- If memory already covers the topic, prioritize it and supplement with fresh results
 - Always cite sources at the end
 """
 
-def synthesize(query: str, tool_results: list, conversation_history: list = []) -> str:
+def synthesize(query: str, tool_results: list, conversation_history: list = [], memory_context: str = "") -> str:
     print(f"\n[SYNTHESIZER] Combining {len(tool_results)} results...\n")
     
     # Format all results into one block
@@ -35,17 +36,22 @@ def synthesize(query: str, tool_results: list, conversation_history: list = []) 
             content = msg["content"][:300] + "..." if len(msg["content"]) > 300 else msg["content"]
             history_text += f"{role} : {content}\n"
             
+    memory_text = ""
+    if memory_context:
+        memory_text = f"\nRelevant Memory from Previous Research:\n{memory_context[:1000]}\n"
+        
     response = llm.invoke([
         SystemMessage(content=SYNTHESIZER_PROMPT),
         HumanMessage(content=f"""
             {history_text}
+            {memory_text}
             
             Current Query: {query}
             
             Research Results:
             {combined}
             
-            Now write a comprehensive research report answering the query.
+            Write a clear concise answer.
         """)
     ])
     
