@@ -1,11 +1,11 @@
 from agents.graph import build_graph
+from memory.vector_store import clear, count
 
 def main():
     agent = build_graph()
     
     print("Research Agent Started")
-    print("Type 'exit' to quit\n")
-    print("Type clear to reset conversation history\n")
+    print("Commands: 'exit' | 'clear' (reset history) | 'memory' (show stored chunks)\n")
     
     conversation_history = []
     
@@ -20,6 +20,10 @@ def main():
             print("[Memort Cleared]\n")
             continue
         
+        if query.lower() == "memory":
+            print(f"[Vector store has {count()} chunks stored]\n")
+            continue
+        
         conversation_history.append({
             'role': 'user',
             'content': query
@@ -32,6 +36,7 @@ def main():
             "conversation_history": conversation_history,
             "tasks": [],
             "tool_results": [],
+            "memory_context": "",
             "final_report": ""
         })
         
@@ -44,6 +49,7 @@ def main():
         print("RESEARCH REPORT")
         print("="*50)
         print(result["final_report"])
+        print(f"\n[Memory: {len(conversation_history)} messages | {count()} vector chunks]")
         print("="*50 + "\n")
 
 if __name__ == "__main__":
