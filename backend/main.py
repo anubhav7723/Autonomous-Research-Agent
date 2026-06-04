@@ -17,7 +17,7 @@ def main():
         
         if query.lower() == "clear":
             conversation_history = []
-            print("[Memort Cleared]\n")
+            print("[Memory Cleared]\n")
             continue
         
         if query.lower() == "memory":
