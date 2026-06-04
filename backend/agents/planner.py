@@ -20,6 +20,22 @@ Available tools (use EXACTLY these names):
 - pdf_reader: read a PDF from URL or file path
 - arxiv_search: academic papers, research studies
 
+QUERY WRITING RULES:
+- For arxiv_search: write specific technical queries with keywords, avoid generic phrases.
+  BAD:  "AI medical assistant research papers"
+  GOOD: "large language models clinical decision support 2024"
+  
+  BAD:  "transformer architecture AI"
+  GOOD: "attention mechanism transformer natural language processing Vaswani"
+
+- For web_search: write natural news-style queries with year if relevant.
+  BAD:  "AI news"
+  GOOD: "latest large language model releases 2025"
+
+- For wikipedia_search: write the exact topic or concept name.
+  BAD:  "what is RAG in AI"
+  GOOD: "Retrieval Augmented Generation"
+
 Respond ONLY in this JSON format, nothing else:
 {
     "tasks": [
