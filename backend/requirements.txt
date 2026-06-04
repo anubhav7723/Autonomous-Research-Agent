@@ -8,3 +8,5 @@ pymupdf
 arxiv
 chromadb
 sentence-transformers
+flask
+flask-cors
