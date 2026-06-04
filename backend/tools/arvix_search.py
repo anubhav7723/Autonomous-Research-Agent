@@ -1,3 +1,4 @@
+import time
 import arxiv
 from langchain.tools import tool
 
@@ -10,7 +11,11 @@ def arxiv_search(query: str)->str:
     print(f"\n[ARXIV CALLED] Query: {query}\n")
     
     try:
-        client = arxiv.Client()
+        client = arxiv.Client(
+            page_size=5,          # ✅ fetch only 5 at a time
+            delay_seconds=3,      # ✅ wait 3s between requests
+            num_retries=2         # ✅ retry on failure
+        )
         
         search = arxiv.Search(
             query= query,
@@ -35,6 +40,11 @@ def arxiv_search(query: str)->str:
             return f"No paper found on {query}"
         
         return "\n---\n".join(results)
-    
+    except arxiv.HTTPError as e:
+        if "429" in str(e):
+            time.sleep(5)  # ✅ wait and suggest retry
+            return "arXiv is rate limiting requests. Please try again in a few seconds."
+        
+        return f"arXiv HTTP error: {str(e)}"
     except Exception as e:
         return f"arXiv search error: {str(e)}"
