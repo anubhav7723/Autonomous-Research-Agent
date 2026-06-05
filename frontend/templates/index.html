@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Research Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f1117;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: 750px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 14px 18px;
+            border-radius: 10px;
+            border: 1px solid #2a2a3a;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: #6c63ff;
+        }
+
+        .search-box button {
+            padding: 14px 24px;
+            border-radius: 10px;
+            border: none;
+            background: #6c63ff;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-box button:hover { background: #574fd6; }
+        .search-box button:disabled { background: #444; cursor: not-allowed; }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .controls button {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #2a2a3a;
+            background: #1a1a2e;
+            color: #aaa;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .controls button:hover { border-color: #6c63ff; color: #fff; }
+
+        .panel {
+            width: 100%;
+            max-width: 750px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a3a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6c63ff;
+            margin-bottom: 14px;
+        }
+
+        /* Activity feed */
+        #activity {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #0f1117;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .activity-item.status { color: #aaa; }
+        .activity-item.tool_start { color: #6c63ff; }
+        .activity-item.tool_end { color: #4caf50; }
+        .activity-item.error { color: #f44336; }
+
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status .dot { background: #aaa; }
+        .tool_start .dot { background: #6c63ff; animation: pulse 1s infinite; }
+        .tool_end .dot { background: #4caf50; }
+        .error .dot { background: #f44336; }
+
+        /* Report */
+        #report {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            font-size: 0.95rem;
+            color: #e0e0e0;
+            display: none;
+        }
+
+        #report h1, #report h2, #report h3 {
+            color: #fff;
+            margin: 16px 0 8px;
+        }
+
+        #report ul, #report ol {
+            padding-left: 20px;
+            margin: 8px 0;
+        }
+
+        #report li { margin: 4px 0; }
+
+        #report a { color: #6c63ff; }
+
+        .memory-badge {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid #444;
+            border-top-color: #6c63ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🔬 Research Agent</h1>
+    <p class="subtitle">Autonomous AI research powered by LangGraph + Groq</p>
+
+    <div class="search-box">
+        <input type="text" id="queryInput" placeholder="Ask a research question..." />
+        <button id="searchBtn" onclick="startResearch()">Research</button>
+    </div>
+
+    <div class="controls">
+        <button onclick="clearMemory()">🗑 Clear Memory</button>
+        <button onclick="showMemory()">💾 Memory Status</button>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="panel" id="activityPanel" style="display:none">
+        <h3>⚡ Agent Activity</h3>
+        <div id="activity"></div>
+    </div>
+
+    <!-- Report -->
+    <div class="panel" id="reportPanel" style="display:none">
+        <h3>📄 Research Report</h3>
+        <div id="report"></div>
+    </div>
+
+    <p class="memory-badge" id="memoryBadge"></p>
+
+    <script>
+        let eventSource = null;
+
+        async function startResearch() {
+            const query = document.getElementById("queryInput").value.trim();
+            if (!query) return;
+
+            // Reset UI
+            document.getElementById("searchBtn").disabled = true;
+            document.getElementById("searchBtn").innerHTML = '<span class="spinner"></span>';
+            document.getElementById("activity").innerHTML = "";
+            document.getElementById("report").innerHTML = "";
+            document.getElementById("report").style.display = "none";
+            document.getElementById("activityPanel").style.display = "block";
+            document.getElementById("reportPanel").style.display = "none";
+
+            // Close existing stream
+            if (eventSource) eventSource.close();
+
+            // Start research
+            await fetch("/research", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query })
+            });
+
+            // Open SSE stream
+            eventSource = new EventSource("/stream");
+
+            eventSource.onmessage = (e) => {
+                const event = JSON.parse(e.data);
+                handleEvent(event);
+            };
+
+            eventSource.onerror = () => {
+                addActivity("error", "Connection error");
+                resetButton();
+                eventSource.close();
+            };
+        }
+
+        function handleEvent(event) {
+            if (event.type === "status") {
+                addActivity("status", event.message);
+            }
+            else if (event.type === "tool_start") {
+                addActivity("tool_start", `🔧 ${event.tool} → "${event.input}"`);
+            }
+            else if (event.type === "tool_end") {
+                addActivity("tool_end", "✓ Tool completed");
+            }
+            else if (event.type === "report") {
+                showReport(event.message);
+            }
+            else if (event.type === "done") {
+                addActivity("status", "✅ Research complete");
+                resetButton();
+                updateMemoryBadge();
+                eventSource.close();
+            }
+            else if (event.type === "error") {
+                addActivity("error", event.message);
+                resetButton();
+            }
+        }
+
+        function addActivity(type, message) {
+            const feed = document.getElementById("activity");
+            const item = document.createElement("div");
+            item.className = `activity-item ${type}`;
+            item.innerHTML = `<span class="dot"></span><span>${message}</span>`;
+            feed.appendChild(item);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function showReport(text) {
+            document.getElementById("reportPanel").style.display = "block";
+            const reportEl = document.getElementById("report");
+            reportEl.style.display = "block";
+            // Simple markdown-like rendering
+            reportEl.innerHTML = text
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\[(.+?)\]\((https?:\/\/.+?)\)/g, '<a href="$2" target="_blank">$1</a>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/\n/g, '<br>');
+        }
+
+        async function clearMemory() {
+            await fetch("/clear", { method: "POST" });
+            document.getElementById("activity").innerHTML = "";
+            document.getElementById("activityPanel").style.display = "none";
+            document.getElementById("reportPanel").style.display = "none";
+            document.getElementById("memoryBadge").textContent = "Memory cleared";
+        }
+
+        async function showMemory() {
+            const res = await fetch("/memory");
+            const data = await res.json();
+            document.getElementById("memoryBadge").textContent =
+                `💾 ${data.chunks} chunks stored in vector memory`;
+        }
+
+        async function updateMemoryBadge() {
+            const res = await fetch("/memory");
+            const data = await res.json();
+            document.getElementById("memoryBadge").textContent =
+                `💾 ${data.chunks} chunks stored in vector memory`;
+        }
+
+        // Submit on Enter
+        document.getElementById("queryInput").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") startResearch();
+        });
+
+        function resetButton() {
+            const btn = document.getElementById("searchBtn");
+            btn.disabled = false;
+            btn.innerHTML = "Research";
+        }
+    </script>
+</body>
+</html>
