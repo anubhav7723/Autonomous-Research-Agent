@@ -6,4 +6,3 @@ app = Flask(__name__, template_folder="templates")
 agent = build_graph()
 
 conversation_history = []
-
