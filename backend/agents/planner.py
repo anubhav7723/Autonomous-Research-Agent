@@ -45,24 +45,30 @@ Respond ONLY in this JSON format, nothing else:
 """
 
 def plan(query: str, conversation_history: list = [], memory_context: str = "") -> list:
+    print(f"\n[PLANNER] Breaking down: {query}\n")
     
     history_text = ""
     if conversation_history:
-        history_text = "\n Conversation History: \n"
-        for msg in conversation_history[-6:]: #last 3 turns only
-            role =  "User" if msg['role'] == 'user' else 'Assistant'
-            # trim long response
+        history_text = "\nConversation History:\n"
+        for msg in conversation_history[-6:]:
+            role = "User" if msg["role"] == "user" else "Assistant"
             content = msg["content"][:300] + "..." if len(msg["content"]) > 300 else msg["content"]
-            history_text += f"{role} : {content}\n"
-            
+            history_text += f"{role}: {content}\n"
+    
     memory_text = ""
     if memory_context:
-        memory_text = f"\nRelevant Memory from Previous Research:\n{memory_context[:1000]}\n"
-    print("\n Planner : breaking down {query}\n")
+        # ✅ trimmed and marked clearly so planner doesn't over-rely on it
+        memory_text = f"\nRelated memory (use only as supplement, always generate at least 1 task):\n{memory_context[:500]}\n"
     
     response = llm.invoke([
         SystemMessage(content=PLANNER_PROMPT),
-        HumanMessage(content=f"{history_text}{memory_text}\nNew Query: {query}")
+        HumanMessage(content=f"""
+            {history_text}
+            {memory_text}
+            New Query: {query}
+            
+            IMPORTANT: Always generate at least 1 task, even if memory seems relevant.
+        """)
     ])
     
     try:
@@ -71,6 +77,12 @@ def plan(query: str, conversation_history: list = [], memory_context: str = "") 
         if match:
             data = json.loads(match.group())
             tasks = data.get("tasks", [])
+            
+            # ✅ fallback if planner returns empty tasks
+            if not tasks:
+                print("[PLANNER] No tasks generated, falling back to web_search")
+                return [{"tool": "web_search", "query": query}]
+            
             print(f"[PLANNER] Generated {len(tasks)} tasks:")
             for i, t in enumerate(tasks):
                 print(f"  {i+1}. {t['tool']} → {t['query']}")
@@ -78,4 +90,4 @@ def plan(query: str, conversation_history: list = [], memory_context: str = "") 
     except Exception as e:
         print(f"[PLANNER] Error parsing plan: {e}")
     
-    return [{'tool': 'web_search', 'query': query}]
+    return [{"tool": "web_search", "query": query}]
