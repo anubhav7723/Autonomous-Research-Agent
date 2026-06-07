@@ -6,7 +6,8 @@ class StreamCallback(BaseCallbackHandler):
         self.queue = q
     
     def on_tool_start(self, serialized, input_str, **kwargs):
-        tool_name = serialized.get("name", "unknown")
+        # ✅ guard against None
+        tool_name = (serialized or {}).get("name", "unknown")
         self.queue.put({
             "type": "tool_start",
             "message": f"Running {tool_name}...",
@@ -21,6 +22,9 @@ class StreamCallback(BaseCallbackHandler):
         })
     
     def on_chain_start(self, serialized, inputs, **kwargs):
+        # ✅ guard against None
+        if not serialized:
+            return
         name = serialized.get("name", "")
         if name == "planner":
             self.queue.put({"type": "status", "message": "Planning tasks..."})
