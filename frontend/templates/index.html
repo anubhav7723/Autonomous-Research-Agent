@@ -225,13 +225,19 @@
     <p class="memory-badge" id="memoryBadge"></p>
 
     <script>
+        // ✅ Generate unique session ID per browser tab — persists on refresh
+        const SESSION_ID = sessionStorage.getItem("session_id") || (() => {
+            const id = crypto.randomUUID();
+            sessionStorage.setItem("session_id", id);
+            return id;
+        })();
+
         let eventSource = null;
 
         async function startResearch() {
             const query = document.getElementById("queryInput").value.trim();
             if (!query) return;
 
-            // Reset UI
             document.getElementById("searchBtn").disabled = true;
             document.getElementById("searchBtn").innerHTML = '<span class="spinner"></span>';
             document.getElementById("activity").innerHTML = "";
@@ -240,18 +246,17 @@
             document.getElementById("activityPanel").style.display = "block";
             document.getElementById("reportPanel").style.display = "none";
 
-            // Close existing stream
             if (eventSource) eventSource.close();
 
-            // Start research
+            // ✅ Send session_id with query
             await fetch("/research", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query, session_id: SESSION_ID })
             });
 
-            // Open SSE stream
-            eventSource = new EventSource("/stream");
+            // ✅ session_id in stream URL
+            eventSource = new EventSource(`/stream/${SESSION_ID}`);
 
             eventSource.onmessage = (e) => {
                 const event = JSON.parse(e.data);
@@ -268,23 +273,18 @@
         function handleEvent(event) {
             if (event.type === "status") {
                 addActivity("status", event.message);
-            }
-            else if (event.type === "tool_start") {
+            } else if (event.type === "tool_start") {
                 addActivity("tool_start", `🔧 ${event.tool} → "${event.input}"`);
-            }
-            else if (event.type === "tool_end") {
+            } else if (event.type === "tool_end") {
                 addActivity("tool_end", "✓ Tool completed");
-            }
-            else if (event.type === "report") {
+            } else if (event.type === "report") {
                 showReport(event.message);
-            }
-            else if (event.type === "done") {
+            } else if (event.type === "done") {
                 addActivity("status", "✅ Research complete");
                 resetButton();
                 updateMemoryBadge();
                 eventSource.close();
-            }
-            else if (event.type === "error") {
+            } else if (event.type === "error") {
                 addActivity("error", event.message);
                 resetButton();
             }
@@ -303,7 +303,6 @@
             document.getElementById("reportPanel").style.display = "block";
             const reportEl = document.getElementById("report");
             reportEl.style.display = "block";
-            // Simple markdown-like rendering
             reportEl.innerHTML = text
                 .replace(/^### (.+)$/gm, '<h3>$1</h3>')
                 .replace(/^## (.+)$/gm, '<h2>$1</h2>')
@@ -316,7 +315,11 @@
         }
 
         async function clearMemory() {
-            await fetch("/clear", { method: "POST" });
+            await fetch("/clear", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: SESSION_ID })
+            });
             document.getElementById("activity").innerHTML = "";
             document.getElementById("activityPanel").style.display = "none";
             document.getElementById("reportPanel").style.display = "none";
@@ -337,7 +340,6 @@
                 `💾 ${data.chunks} chunks stored in vector memory`;
         }
 
-        // Submit on Enter
         document.getElementById("queryInput").addEventListener("keydown", (e) => {
             if (e.key === "Enter") startResearch();
         });
