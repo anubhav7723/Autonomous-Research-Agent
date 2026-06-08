@@ -125,6 +125,47 @@
             background: #0f1117;
             animation: fadeIn 0.3s ease;
         }
+        
+        .error-banner {
+            width: 100%;
+            max-width: 750px;
+            background: #2a1a1a;
+            border: 1px solid #f44336;
+            border-radius: 10px;
+            padding: 14px 18px;
+            color: #f44336;
+            font-size: 0.9rem;
+            display: none;
+            animation: fadeIn 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .error-banner span {
+            margin-left: 8px;
+        }
+
+        .retry-btn {
+            margin-left: 12px;
+            background: none;
+            border: 1px solid #f44336;
+            color: #f44336;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .retry-btn:hover {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .empty-state {
+            color: #555;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 20px 0;
+        }
 
         .activity-item.status { color: #aaa; }
         .activity-item.tool_start { color: #6c63ff; }
@@ -165,6 +206,33 @@
 
         #report a { color: #6c63ff; }
 
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;    
+        }
+
+        .copy-btn {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid #2a2a3a;
+            background: #0f1117;
+            color: #aaa;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            border-color: #6c63ff;
+            color: #fff;
+        }
+
+        .copy-btn.copied {
+            border-color: #4caf50;
+            color: #4caf50;
+        }
         .memory-badge {
             font-size: 0.8rem;
             color: #666;
@@ -209,7 +277,11 @@
         <button onclick="clearMemory()">🗑 Clear Memory</button>
         <button onclick="showMemory()">💾 Memory Status</button>
     </div>
-
+        <!-- Error Banner -->
+    <div class="error-banner" id="errorBanner">
+        ⚠️ <span id="errorMessage"></span>
+        <button class="retry-btn" onclick="retry()">Retry</button>
+    </div>
     <!-- Activity Feed -->
     <div class="panel" id="activityPanel" style="display:none">
         <h3>⚡ Agent Activity</h3>
@@ -218,80 +290,173 @@
 
     <!-- Report -->
     <div class="panel" id="reportPanel" style="display:none">
-        <h3>📄 Research Report</h3>
+        <div class="report-header">
+            <h3>📄 Research Report</h3>
+            <button class="copy-btn" id="copyBtn" onclick="copyReport()">
+                📋 Copy
+            </button>
+        </div>
         <div id="report"></div>
     </div>
 
     <p class="memory-badge" id="memoryBadge"></p>
 
     <script>
-        // ✅ Generate unique session ID per browser tab — persists on refresh
-        const SESSION_ID = sessionStorage.getItem("session_id") || (() => {
+        const SESSION_ID = (() => {
+            const existing = sessionStorage.getItem("session_id");
+            if (existing) return existing;
             const id = crypto.randomUUID();
             sessionStorage.setItem("session_id", id);
             return id;
         })();
 
         let eventSource = null;
+        let lastQuery = "";  // ✅ store for retry
 
         async function startResearch() {
             const query = document.getElementById("queryInput").value.trim();
-            if (!query) return;
+            
+            // ✅ Validate query before sending
+            if (!query) {
+                showError("Please enter a research question.");
+                return;
+            }
+            if (query.length < 5) {
+                showError("Query is too short — please be more specific.");
+                return;
+            }
+
+            lastQuery = query;
+            hideError();
+            resetUI();
 
             document.getElementById("searchBtn").disabled = true;
             document.getElementById("searchBtn").innerHTML = '<span class="spinner"></span>';
-            document.getElementById("activity").innerHTML = "";
-            document.getElementById("report").innerHTML = "";
-            document.getElementById("report").style.display = "none";
             document.getElementById("activityPanel").style.display = "block";
-            document.getElementById("reportPanel").style.display = "none";
 
             if (eventSource) eventSource.close();
 
-            // ✅ Send session_id with query
-            await fetch("/research", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query, session_id: SESSION_ID })
-            });
+            try {
+                const res = await fetch("/research", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query, session_id: SESSION_ID })
+                });
 
-            // ✅ session_id in stream URL
+                // ✅ Handle HTTP errors from server
+                if (!res.ok) {
+                    const data = await res.json();
+                    showError(data.error || `Server error (${res.status})`);
+                    resetButton();
+                    return;
+                }
+
+            } catch (err) {
+                // ✅ Handle network errors (server down etc.)
+                showError("Cannot connect to server. Is the backend running?");
+                resetButton();
+                return;
+            }
+
+            // Open SSE stream
             eventSource = new EventSource(`/stream/${SESSION_ID}`);
 
+            // ✅ Timeout — show message if no response in 90s
+            const timeout = setTimeout(() => {
+                if (eventSource) {
+                    eventSource.close();
+                    addActivity("error", "⏱ Research is taking too long — please try again.");
+                    showError("Request timed out. Try a simpler question.");
+                    resetButton();
+                }
+            }, 90000);
+
             eventSource.onmessage = (e) => {
-                const event = JSON.parse(e.data);
-                handleEvent(event);
+                try {
+                    const event = JSON.parse(e.data);
+                    handleEvent(event, timeout);
+                } catch (err) {
+                    showError("Received malformed response from server.");
+                    resetButton();
+                    clearTimeout(timeout);
+                    eventSource.close();
+                }
             };
 
             eventSource.onerror = () => {
-                addActivity("error", "Connection error");
-                resetButton();
+                clearTimeout(timeout);
+                // ✅ Only show error if we haven't completed successfully
+                if (document.getElementById("searchBtn").disabled) {
+                    showError("Connection lost. Please try again.");
+                    addActivity("error", "❌ Connection error");
+                    resetButton();
+                }
                 eventSource.close();
             };
         }
 
-        function handleEvent(event) {
+        function handleEvent(event, timeout) {
             if (event.type === "status") {
                 addActivity("status", event.message);
-            } else if (event.type === "tool_start") {
+            }
+            else if (event.type === "tool_start") {
                 addActivity("tool_start", `🔧 ${event.tool} → "${event.input}"`);
-            } else if (event.type === "tool_end") {
+            }
+            else if (event.type === "tool_end") {
                 addActivity("tool_end", "✓ Tool completed");
-            } else if (event.type === "report") {
+            }
+            else if (event.type === "report") {
                 showReport(event.message);
-            } else if (event.type === "done") {
+            }
+            else if (event.type === "done") {
+                clearTimeout(timeout);
                 addActivity("status", "✅ Research complete");
                 resetButton();
                 updateMemoryBadge();
                 eventSource.close();
-            } else if (event.type === "error") {
-                addActivity("error", event.message);
-                resetButton();
             }
+            else if (event.type === "error") {
+                clearTimeout(timeout);
+                // ✅ Show error in both activity feed and banner
+                addActivity("error", `❌ ${event.message}`);
+                showError(event.message);
+                resetButton();
+                eventSource.close();
+            }
+        }
+
+        function showError(message) {
+            const banner = document.getElementById("errorBanner");
+            document.getElementById("errorMessage").textContent = message;
+            banner.style.display = "block";
+        }
+
+        function hideError() {
+            document.getElementById("errorBanner").style.display = "none";
+        }
+
+        // ✅ Retry last query with one click
+        function retry() {
+            if (!lastQuery) return;
+            document.getElementById("queryInput").value = lastQuery;
+            hideError();
+            startResearch();
+        }
+
+        function resetUI() {
+            document.getElementById("activity").innerHTML = "";
+            document.getElementById("report").innerHTML = "";
+            document.getElementById("report").style.display = "none";
+            document.getElementById("reportPanel").style.display = "none";
         }
 
         function addActivity(type, message) {
             const feed = document.getElementById("activity");
+
+            // ✅ Remove empty state if present
+            const empty = feed.querySelector(".empty-state");
+            if (empty) empty.remove();
+
             const item = document.createElement("div");
             item.className = `activity-item ${type}`;
             item.innerHTML = `<span class="dot"></span><span>${message}</span>`;
@@ -320,26 +485,57 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ session_id: SESSION_ID })
             });
-            document.getElementById("activity").innerHTML = "";
+            resetUI();
+            hideError();
             document.getElementById("activityPanel").style.display = "none";
-            document.getElementById("reportPanel").style.display = "none";
             document.getElementById("memoryBadge").textContent = "Memory cleared";
         }
 
         async function showMemory() {
-            const res = await fetch("/memory");
-            const data = await res.json();
-            document.getElementById("memoryBadge").textContent =
-                `💾 ${data.chunks} chunks stored in vector memory`;
+            try {
+                const res = await fetch("/memory");
+                const data = await res.json();
+                document.getElementById("memoryBadge").textContent =
+                    `💾 ${data.chunks} chunks stored in vector memory`;
+            } catch {
+                document.getElementById("memoryBadge").textContent = "Could not fetch memory status";
+            }
         }
 
         async function updateMemoryBadge() {
-            const res = await fetch("/memory");
-            const data = await res.json();
-            document.getElementById("memoryBadge").textContent =
-                `💾 ${data.chunks} chunks stored in vector memory`;
+            try {
+                const res = await fetch("/memory");
+                const data = await res.json();
+                document.getElementById("memoryBadge").textContent =
+                    `💾 ${data.chunks} chunks stored in vector memory`;
+            } catch {
+                // silent fail
+            }
         }
-
+        function copyReport() {
+            const reportEl = document.getElementById("report");
+            const text = reportEl.innerText;  // plain text, no HTML tags
+            
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    const btn = document.getElementById("copyBtn");
+                    btn.textContent = "✅ Copied!";
+                    btn.classList.add("copied");
+                    setTimeout(() => {
+                        btn.textContent = "📋 Copy";
+                        btn.classList.remove("copied");
+                    }, 2000);
+                })
+                .catch(() => {
+                    // Fallback for older browsers
+                    const textarea = document.createElement("textarea");
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textarea);
+                });
+        }       
         document.getElementById("queryInput").addEventListener("keydown", (e) => {
             if (e.key === "Enter") startResearch();
         });
