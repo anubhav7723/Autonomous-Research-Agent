@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  agent:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - chroma_data:/app/backend/memory/chroma_db
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
