@@ -1,11 +1,15 @@
-# Autonomous Research Agent/run.py
 import sys
 import os
 
-# Add backend to Python path so frontend can import from it
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from frontend.app import app
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True)
+    # ✅ production settings
+    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    port = int(os.getenv("PORT", 5000))
+    app.run(debug=debug, host="0.0.0.0", port=port, threaded=True)
