@@ -3,7 +3,7 @@ langchain-groq==0.2.4
 langchain
 langchain-core
 langchain-community
-duckduckgo-search
+ddgs
 python-dotenv
 wikipedia
 pymupdf
@@ -14,4 +14,3 @@ flask
 flask-cors
 flask-session
 groq
-torch --index-url https://download.pytorch.org/whl/cpu
