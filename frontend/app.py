@@ -29,6 +29,7 @@ def get_queue(session_id: str) -> queue.Queue:
     return session_queues[session_id]
 
 
+
 def stream_agent(session_id: str, query: str):
     q = get_queue(session_id)
     history = get_history(session_id)
