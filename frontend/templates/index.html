@@ -302,10 +302,24 @@
     <p class="memory-badge" id="memoryBadge"></p>
 
     <script>
+        function generateUUID() {
+            try {
+                // Works on HTTPS / localhost
+                return crypto.randomUUID();
+            } catch {
+                // Fallback for HTTP (manual UUID generation)
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+        }
+        
         const SESSION_ID = (() => {
             const existing = sessionStorage.getItem("session_id");
             if (existing) return existing;
-            const id = crypto.randomUUID();
+            const id = generateUUID();  // ✅ uses fallback if needed
             sessionStorage.setItem("session_id", id);
             return id;
         })();
