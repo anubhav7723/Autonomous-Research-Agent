@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autonomous Research Agent</title>
     <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
-    <h1>🔬 Research Agent</h1>
+    <h1>Research Agent</h1>
     <p class="subtitle">Autonomous AI research powered by LangGraph + Groq</p>
 
     <div class="search-box">
@@ -16,26 +17,26 @@
     </div>
 
     <div class="controls">
-        <button onclick="clearMemory()">🗑 Clear Memory</button>
-        <button onclick="showMemory()">💾 Memory Status</button>
+        <button onclick="clearMemory()"> Clear Memory</button>
+        <button onclick="showMemory()"> Memory Status</button>
     </div>
         <!-- Error Banner -->
     <div class="error-banner" id="errorBanner">
-        ⚠️ <span id="errorMessage"></span>
+        <span id="errorMessage"></span>
         <button class="retry-btn" onclick="retry()">Retry</button>
     </div>
     <!-- Activity Feed -->
     <div class="panel" id="activityPanel" style="display:none">
-        <h3>⚡ Agent Activity</h3>
+        <h3> Agent Activity</h3>
         <div id="activity"></div>
     </div>
 
     <!-- Report -->
     <div class="panel" id="reportPanel" style="display:none">
         <div class="report-header">
-            <h3>📄 Research Report</h3>
+            <h3> Research Report</h3>
             <button class="copy-btn" id="copyBtn" onclick="copyReport()">
-                📋 Copy
+                 Copy
             </button>
         </div>
         <div id="report"></div>
